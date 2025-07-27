@@ -8,7 +8,7 @@ class MongoDBHandler:
         """Initialize MongoDB connections for polygons and event logs."""
         try:
             self.client = MongoClient(f'mongodb://{host}:{port}/', serverSelectionTimeoutMS=5000)
-            self.client.admin.command('ping')  # Test connection
+            self.client.admin.command('ping')
             self.polygon_db = self.client[polygon_db_name]
             self.polygon_collection = self.polygon_db[polygon_collection_name]
             self.log_db = self.client[log_db_name]

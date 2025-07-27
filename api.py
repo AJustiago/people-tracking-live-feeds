@@ -7,14 +7,12 @@ import pytz
 from fastapi.responses import JSONResponse
 from mongo_utils import MongoDBHandler
 
-# Initialize FastAPI app with Swagger metadata
 app = FastAPI(
     title="People Tracking API",
     description="API for retrieving people tracking statistics and configuring detection polygons.",
     version="1.0.0"
 )
 
-# Pydantic models for request/response validation
 class Point(BaseModel):
     x: float = Field(..., ge=0, le=640, description="X-coordinate within canvas (0-640)")
     y: float = Field(..., ge=0, le=480, description="Y-coordinate within canvas (0-480)")
@@ -27,7 +25,7 @@ class EventLog(BaseModel):
     person_id: int
     polygon_index: int
     event_type: str
-    timestamp: str  # Changed to str to match ISO 8601 string
+    timestamp: str 
 
 class PolygonStats(BaseModel):
     polygon_index: int
@@ -46,7 +44,6 @@ class LiveStatsResponse(BaseModel):
     logs: List[EventLog]
     current_counts: dict
 
-# Custom serialization for MongoDB documents
 def serialize_mongo_doc(doc):
     """Convert MongoDB document to JSON-serializable format."""
     if isinstance(doc, list):
@@ -65,7 +62,6 @@ def serialize_mongo_doc(doc):
         return result
     return doc
 
-# Initialize MongoDB handler
 try:
     mongo_handler = MongoDBHandler()
 except ConnectionError as e:
@@ -93,14 +89,9 @@ async def get_stats(
     Returns a list of event logs, total count, pagination details, and enter/leave counts per polygon.
     """
     try:
-        # Fetch event logs
         logs, total = mongo_handler.get_event_logs(start_time, end_time, page, limit)
         total_pages = (total + limit - 1) // limit
-        
-        # Fetch polygon enter/leave counts
         polygon_counts = mongo_handler.get_polygon_stats(start_time, end_time)
-        
-        # Serialize logs to convert timestamps to ISO 8601 strings
         serialized_logs = serialize_mongo_doc(logs)
         
         return JSONResponse(
@@ -138,8 +129,7 @@ async def get_live_stats():
             elif event_type == "leave":
                 current_counts[polygon_index] -= 1
             current_counts[polygon_index] = max(0, current_counts[polygon_index])
-        
-        # Serialize logs to convert timestamps to ISO 8601 strings
+            
         serialized_logs = serialize_mongo_doc(logs)
         
         return JSONResponse(

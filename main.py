@@ -16,7 +16,6 @@ class PolygonApp:
         self.root = root
         self.root.title("People Tracking CCTV")
 
-        # Initialize MongoDB handler
         try:
             self.mongo_handler = MongoDBHandler()
         except ConnectionError as e:
@@ -24,18 +23,14 @@ class PolygonApp:
             self.root.destroy()
             return
 
-        # Initialize queue for thread-safe communication
         self.frame_queue = queue.Queue()
 
-        # Main frame to hold canvas and log panel
         self.main_frame = tk.Frame(root)
         self.main_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-        # Canvas (displays video and polygons)
         self.canvas = tk.Canvas(self.main_frame, width=640, height=480, highlightthickness=0)
         self.canvas.pack(side=tk.LEFT, padx=5, pady=5)
 
-        # Log panel (right side)
         self.log_frame = tk.Frame(self.main_frame)
         self.log_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=5)
         self.log_label = tk.Label(self.log_frame, text="Action Log", font=("Arial", 10, "bold"))
@@ -46,25 +41,23 @@ class PolygonApp:
         self.log_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.log_text['yscrollcommand'] = self.log_scrollbar.set
 
-        # Initialize variables
         self.selected = None
         self.startxy = None
-        self.polygons = []  # Store (polygon_id, points, vertex_ids) for each polygon
+        self.polygons = [] 
         self.creating_polygon = False
-        self.temp_points = []  # Temporary points during polygon creation
+        self.temp_points = []  
         self.temp_polygon_id = None
-        self.selected_vertex = None  # For resizing
+        self.selected_vertex = None
         self.video_running = True
         self.current_photo = None
         self.video_image_id = None
-        self.person_tracker = {}  # Track person IDs: {person_id: (center_x, center_y, polygon_index, missed_frames)}
-        self.person_counter = 0  # For assigning unique person IDs
-        self.distance_threshold = 50  # Distance threshold for tracking (pixels)
-        self.max_missed_frames = 30  # Frames before considering a person "left"
+        self.person_tracker = {}  
+        self.person_counter = 0 
+        self.distance_threshold = 50 
+        self.max_missed_frames = 30
         self.canvas_width = 640
         self.canvas_height = 480
 
-        # Create buttons
         button_frame = tk.Frame(root)
         button_frame.pack(side=tk.BOTTOM)
 
@@ -72,37 +65,29 @@ class PolygonApp:
         tk.Button(button_frame, text="Clear All", command=self.clear_all).pack(side=tk.LEFT, padx=5)
         tk.Button(button_frame, text="Help", command=self.show_help).pack(side=tk.LEFT, padx=5)
 
-        # Create text area for coordinates
         self.coord_text = tk.Text(root, height=4, width=50)
         self.coord_text.pack(side=tk.BOTTOM)
         self.coord_text.insert(tk.END, "Left-click to add points for a new polygon. Right-click to finish.\n"
                                       "Left-click and drag to move a polygon or vertex. Right-click to delete a polygon.\n")
 
-        # Bind mouse events to canvas
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
         self.canvas.bind("<Button-3>", self.on_right_click)
 
-        # Initialize video capture
         self.hls_url = "https://cctvjss.jogjakota.go.id/margo-utomo/Selatan-Olive.stream/chunklist_w518845677.m3u8"
         self.cap = cv2.VideoCapture(self.hls_url)
 
-        # Initialize YOLO model
         self.model = YolosForObjectDetection.from_pretrained('hustvl/yolos-tiny')
         self.image_processor = YolosImageProcessor.from_pretrained("hustvl/yolos-tiny")
 
-        # Load polygons from MongoDB after a short delay
         self.root.after(1000, self.load_polygons_from_db)
 
-        # Start video thread
         self.video_thread = threading.Thread(target=self.update_video, daemon=True)
         self.video_thread.start()
 
-        # Start processing queue
         self.process_queue()
 
-        # Show help dialog on startup
         self.show_help()
 
     def log_action(self, message):
@@ -134,19 +119,15 @@ class PolygonApp:
     def load_polygons_from_db(self):
         """Load non-deleted polygons from MongoDB and draw them on the canvas."""
         self.polygons = []
-        self.canvas.delete('polygon', 'vertex')  # Delete only polygons and vertices, preserve video
-        # Draw video feed if available
+        self.canvas.delete('polygon', 'vertex')  
         if hasattr(self, 'current_photo') and self.current_photo and not self.video_image_id:
             self.video_image_id = self.canvas.create_image(0, 0, image=self.current_photo, anchor='nw', tags='video')
-        # Load and draw polygons
         for poly in self.mongo_handler.load_polygons():
             points = poly.get('points', [])
-            # Validate points
             if not isinstance(points, list) or len(points) < 6 or len(points) % 2 != 0:
                 self.log_action(f"Skipped invalid Polygon-{poly['index']} from database (invalid points: {points})")
                 continue
             try:
-                # Ensure points are numeric and within canvas bounds
                 points = [float(p) for p in points]
                 points = [max(0, min(self.canvas_width, p)) if i % 2 == 0 else max(0, min(self.canvas_height, p)) for i, p in enumerate(points)]
             except (ValueError, TypeError):
@@ -160,7 +141,7 @@ class PolygonApp:
                 vertex_ids.append(vertex_id)
             self.polygons.append((polygon_id, points, vertex_ids))
             self.log_action(f"Loaded Polygon-{poly['index']} from database with points {points}")
-            # Raise polygons and vertices above video
+           
             self.canvas.tag_raise(polygon_id)
             for vertex_id in vertex_ids:
                 self.canvas.tag_raise(vertex_id)
@@ -309,7 +290,7 @@ class PolygonApp:
 
     def finish_polygon_creation(self):
         """Finish creating a polygon and save it to the database."""
-        if len(self.temp_points) >= 6:  # At least 3 points (6 coordinates)
+        if len(self.temp_points) >= 6:  
             if not self.temp_points:
                 center_x, center_y = 320, 240
                 size = 50
@@ -319,7 +300,7 @@ class PolygonApp:
                     center_x + size, center_y + size,
                     center_x - size, center_y + size
                 ]
-            # Clamp points to canvas bounds
+
             self.temp_points = [max(0, min(self.canvas_width, p)) if i % 2 == 0 else max(0, min(self.canvas_height, p)) for i, p in enumerate(self.temp_points)]
             polygon_id = self.canvas.create_polygon(self.temp_points, fill='', outline='blue', width=3, tags='polygon')
             vertex_ids = []

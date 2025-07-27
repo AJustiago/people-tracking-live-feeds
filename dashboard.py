@@ -4,15 +4,12 @@ from datetime import datetime, timedelta
 import pytz
 import requests
 
-# Streamlit page configuration
 st.set_page_config(page_title="People Tracking Dashboard", layout="wide")
 
-# API endpoints
 API_BASE_URL = "http://localhost:8000"
 STATS_URL = f"{API_BASE_URL}/api/stats/"
 LIVE_STATS_URL = f"{API_BASE_URL}/api/stats/live"
 
-# Initialize session state for pagination
 if 'page' not in st.session_state:
     st.session_state.page = 1
 if 'limit' not in st.session_state:
@@ -44,17 +41,14 @@ def fetch_live_stats():
         st.error(f"Failed to fetch live stats: {e}")
         return {"logs": [], "current_counts": {}}
 
-# Dashboard layout
 st.title("People Tracking Dashboard")
 
-# Two-column layout
 col1, col2 = st.columns([2, 1])
 
 # Column 1: Historical Stats
 with col1:
     st.header("Historical Statistics")
-    
-    # Time range filters
+
     st.subheader("Filter by Time Range (UTC)")
     time_col1, time_col2 = st.columns(2)
     with time_col1:
@@ -74,8 +68,7 @@ with col1:
     except ValueError:
         end_time = None
         st.warning("Invalid end time format. Using no end time filter.")
-    
-    # Pagination controls
+
     st.subheader("Pagination")
     page_col1, page_col2 = st.columns(2)
     with page_col1:
@@ -86,16 +79,14 @@ with col1:
             st.session_state.page += 1
     limit = st.selectbox("Records per page", [10, 25, 50, 100], index=0)
     st.session_state.limit = limit
-    
-    # Fetch and display historical stats
+
     stats = fetch_stats(start_time, end_time, st.session_state.page, st.session_state.limit)
     logs = stats.get("logs", [])
     total = stats.get("total", 0)
     page = stats.get("page", 1)
     total_pages = stats.get("total_pages", 1)
     polygon_counts = stats.get("polygon_counts", [])
-    
-    # Display event logs table
+ 
     st.subheader("Event Logs")
     if logs:
         try:
@@ -113,7 +104,6 @@ with col1:
     else:
         st.write("No historical event logs available.")
     
-    # Display polygon counts table
     st.subheader("Enter/Leave Counts per Polygon")
     if polygon_counts:
         counts_df = pd.DataFrame(polygon_counts)
@@ -126,15 +116,13 @@ with col1:
 # Column 2: Live Stats
 with col2:
     st.header("Live Statistics")
-    
-    # Auto-refresh live stats
+
     live_stats_placeholder = st.empty()
     with live_stats_placeholder.container():
         live_stats = fetch_live_stats()
         logs = live_stats.get("logs", [])
         current_counts = live_stats.get("current_counts", {})
-        
-        # Display live stats table
+
         if logs:
             try:
                 df = pd.DataFrame(logs)
@@ -160,9 +148,8 @@ with col2:
         else:
             st.write("No live data available.")
 
-# Auto-refresh live stats every 5 seconds
 st_autorefresh = st.session_state.get("st_autorefresh", 0)
-if st_autorefresh % 50 == 0:  # Approx. 5 seconds (Streamlit runs at ~10Hz)
+if st_autorefresh % 50 == 0:
     live_stats_placeholder.empty()
     with live_stats_placeholder.container():
         live_stats = fetch_live_stats()
