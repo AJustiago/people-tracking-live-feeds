@@ -55,27 +55,17 @@ The system uses MongoDB with two databases: `cctv_tracking` for polygon configur
       ```
 
 ### Database Diagram
-Below is a simplified representation of the database schema using Mermaid syntax. You can render this using a Mermaid-compatible tool (e.g., GitHub, Mermaid Live Editor).
+Below is a text-based representation of the database schema using ASCII art with text and arrows to show the relationship between collections.
 
-```mermaid
-erDiagram
-  cctv_tracking.polygons ||--o{ people_tracking_logs.event_logs : "references"
-  cctv_tracking.polygons {
-    int index
-    float[] points
-    boolean isDeleted
-    datetime updated_at
-  }
-  people_tracking_logs.event_logs {
-    int person_id
-    int polygon_index
-    string event_type
-    datetime timestamp
-  }
 ```
-
-*Note*: Save the above Mermaid code as an image (e.g., `database_diagram.png`) using a tool like Mermaid Live Editor and embed it here:
-![Database Diagram](path/to/database_diagram.png)
+cctv_tracking.polygons                     people_tracking_logs.event_logs
++------------------------+                 +--------------------------+
+| index: int             |                 | person_id: int           |
+| points: float[]        | ----->          | polygon_index: int       |
+| isDeleted: boolean     | references      | event_type: string       |
+| updated_at: datetime   |                 | timestamp: datetime      |
++------------------------+                 +--------------------------+
+```
 
 ### Relationship Between Tables
 - The `polygon_index` in `people_tracking_logs.event_logs` references the `index` in `cctv_tracking.polygons`, establishing a one-to-many relationship (one polygon can have multiple events).
@@ -109,9 +99,6 @@ erDiagram
   - The `index` field links `event_logs` to `polygons`, enabling efficient querying of events by polygon.
   - UTC timestamps ensure consistency across components, though `main.py` displays logs in WIB (Asia/Jakarta) for user readability.
   - Soft deletion prevents data loss and supports potential recovery of deleted polygons.
-
-*Note*: Save the above Mermaid code as an image (e.g., `system_architecture.png`) and embed it here:
-![System Architecture](path/to/system_architecture.png)
 
 ### Component Interactions
 - **main.py**: Processes video, detects people, tracks them within polygons, and saves data to MongoDB via `MongoDBHandler`.
